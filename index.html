@@ -448,44 +448,54 @@ function renderToday(){
   var workout=EXERCISES[key];
   var html='<div class="workout-day-label">'+workout.label+'</div>';
   html+='<div class="warmup-mini"><b>Warm-up first (5 min):</b> 60 slow jumping jacks &rarr; 10 arm circles each way &rarr; 10 bodyweight squats &rarr; 10 slow push-ups &rarr; 30s stretch</div>';
+  html+='<div class="warmup-mini" style="margin-top:6px"><b>How to train:</b> Complete ALL sets of one exercise before moving to the next. Rest 90 seconds between each set.</div>';
   workout.items.forEach(function(ex,i){
     var id=key+'-'+i;
-    var state=todayExState[id]||{done:false,weight:'',reps:''};
+    var numSets=ex.sets;
+    var state=todayExState[id]||{done:false,sets:[]};
+    if(!state.sets||!state.sets.length){state.sets=[];for(var s=0;s<numSets;s++) state.sets.push({w:'',r:''});}
+    while(state.sets.length<numSets) state.sets.push({w:'',r:''});
     html+='<div class="ex-card '+(state.done?'done':'')+'" id="card-'+id+'">';
     html+='<div class="ex-top-row">';
     html+='<div class="check" onclick="toggleEx(\''+id+'\')">'+(state.done?'&#10003;':'')+'</div>';
     html+='<div class="ex-info"><div class="ex-name"><a href="'+YT(ex.yt)+'" target="_blank">'+ex.name+' &#8599;</a></div>';
-    html+='<div class="ex-target">Target: '+ex.sets+' &times; '+ex.reps+'</div>';
+    html+='<div class="ex-target">Target: '+ex.sets+' sets &times; '+ex.reps+' reps</div>';
     html+='<div class="ex-note">'+ex.note+'</div></div></div>';
-    html+='<div class="log-row">';
-    if(ex.bw){
-      html+='<div class="log-input"><label>Weight (lbs)</label><input type="text" id="w-'+id+'" value="'+(state.weight||'BW')+'" onchange="updateEx(\''+id+'\')" style="color:#888" onfocus="if(this.value===\'BW\'){this.value=\'BW + \';this.style.color=\'#1a1a1a\'}" onblur="if(this.value===\'BW + \'||!this.value){this.value=\'BW\';this.style.color=\'#888\'}else{this.style.color=\'#1a1a1a\'}" /></div>';
-    }else{
-      html+='<div class="log-input"><label>Weight (lbs)</label><input type="number" id="w-'+id+'" value="'+state.weight+'" onchange="updateEx(\''+id+'\')" placeholder="—" /></div>';
+    for(var si=0;si<numSets;si++){
+      var sv=state.sets[si]||{w:'',r:''};
+      html+='<div class="log-row" style="border-top:1px solid #e8e6e1;padding-top:6px">';
+      html+='<div style="font-size:11px;color:#888;font-weight:700;min-width:36px;padding-top:10px">Set '+(si+1)+'</div>';
+      if(ex.bw){
+        html+='<div class="log-input"><label>Weight</label><input type="text" id="w-'+id+'-'+si+'" value="'+(sv.w||'BW')+'" onchange="updateSet(\''+id+'\','+si+')" style="color:#888" onfocus="if(this.value===\'BW\'){this.value=\'BW + \';this.style.color=\'#1a1a1a\'}" onblur="if(this.value===\'BW + \'||!this.value){this.value=\'BW\';this.style.color=\'#888\'}else{this.style.color=\'#1a1a1a\'}" /></div>';
+      }else{
+        html+='<div class="log-input"><label>Weight (lbs)</label><input type="number" id="w-'+id+'-'+si+'" value="'+sv.w+'" onchange="updateSet(\''+id+'\','+si+')" placeholder="—" /></div>';
+      }
+      html+='<div class="log-input"><label>Reps</label><input type="text" inputmode="numeric" id="r-'+id+'-'+si+'" value="'+sv.r+'" onchange="updateSet(\''+id+'\','+si+')" placeholder="—" /></div>';
+      html+='</div>';
     }
-    html+='<div class="log-input"><label>Reps done</label><input type="text" inputmode="numeric" id="r-'+id+'" value="'+state.reps+'" onchange="updateEx(\''+id+'\')" placeholder="—" /></div>';
-    html+='</div></div>';
+    html+='</div>';
   });
-  var allDone=workout.items.every(function(_,i){var s=todayExState[key+'-'+i];return s&&s.done});
   var alreadyLogged=workoutLogs.some(function(l){return l.date===todayStr()&&l.key===key});
-  html+='<button class="complete-btn" onclick="completeWorkout(\''+key+'\')" '+(alreadyLogged?'disabled':'')+' id="completeBtn">'+(alreadyLogged?'Workout logged today &#10003;':'Complete workout')+'</button>';
+  html+='<button class="complete-btn" onclick="completeWorkout(\''+key+'\')" id="completeBtn">'+(alreadyLogged?'Update workout':'Complete workout')+'</button>';
   html+='<div class="sync-status" id="workoutSync"></div>';
   el.innerHTML=html;
 }
 
 function toggleEx(id){
-  if(!todayExState[id]) todayExState[id]={done:false,weight:'',reps:''};
+  if(!todayExState[id]) todayExState[id]={done:false,sets:[]};
   todayExState[id].done=!todayExState[id].done;
   save();
   renderToday();
 }
 
-function updateEx(id){
-  if(!todayExState[id]) todayExState[id]={done:false,weight:'',reps:''};
-  var w=document.getElementById('w-'+id);
-  var r=document.getElementById('r-'+id);
-  if(w) todayExState[id].weight=w.value;
-  if(r) todayExState[id].reps=r.value;
+function updateSet(id,si){
+  if(!todayExState[id]) todayExState[id]={done:false,sets:[]};
+  if(!todayExState[id].sets) todayExState[id].sets=[];
+  while(todayExState[id].sets.length<=si) todayExState[id].sets.push({w:'',r:''});
+  var w=document.getElementById('w-'+id+'-'+si);
+  var r=document.getElementById('r-'+id+'-'+si);
+  if(w) todayExState[id].sets[si].w=w.value;
+  if(r) todayExState[id].sets[si].r=r.value;
   save();
 }
 
@@ -494,10 +504,17 @@ function completeWorkout(key){
   var entry={date:todayStr(),key:key,label:workout.label,exercises:[]};
   workout.items.forEach(function(ex,i){
     var id=key+'-'+i;
-    var s=todayExState[id]||{done:false,weight:'',reps:''};
-    entry.exercises.push({name:ex.name,targetSets:ex.sets,targetReps:ex.reps,weight:ex.bw?(s.weight||'BW'):s.weight,reps:s.reps,done:s.done});
+    var s=todayExState[id]||{done:false,sets:[]};
+    var setsData=[];
+    for(var si=0;si<ex.sets;si++){
+      var sv=(s.sets&&s.sets[si])||{w:'',r:''};
+      setsData.push({w:ex.bw?(sv.w||'BW'):sv.w,r:sv.r});
+    }
+    entry.exercises.push({name:ex.name,targetSets:ex.sets,targetReps:ex.reps,sets:setsData,done:s.done});
   });
-  workoutLogs.push(entry);
+  var existingIdx=-1;
+  workoutLogs.forEach(function(l,idx){if(l.date===todayStr()&&l.key===key) existingIdx=idx;});
+  if(existingIdx>=0){workoutLogs[existingIdx]=entry;}else{workoutLogs.push(entry);}
   save();
   syncWorkout(entry);
   renderToday();
@@ -507,7 +524,10 @@ function syncWorkout(entry){
   if(!sheetUrl) return;
   var rows=[];
   entry.exercises.forEach(function(ex){
-    rows.push([entry.date,entry.label,ex.name,ex.targetSets,ex.targetReps,ex.weight||'—',ex.reps||'—',ex.done?'Yes':'No']);
+    for(var si=0;si<ex.sets.length;si++){
+      var sv=ex.sets[si];
+      rows.push([entry.date,entry.label,ex.name,'Set '+(si+1)+'/'+ex.targetSets,ex.targetReps,sv.w||'—',sv.r||'—',ex.done?'Yes':'No']);
+    }
   });
   postToSheet({sheet:'Workouts',rows:rows},function(){showSync('workoutSync')});
 }
@@ -641,9 +661,16 @@ function renderHistory(){
   workoutLogs.slice().reverse().forEach(function(log){
     html+='<div class="log-entry"><div class="log-date">'+log.date+'</div><div class="log-day">'+log.label+'</div><div class="log-exercises">';
     log.exercises.forEach(function(ex){
-      var w=ex.weight?ex.weight+' lbs':'—';
-      var r=ex.reps||'—';
-      html+=(ex.done?'&#10003; ':'&#9723; ')+ex.name+' — '+w+' / '+r+'<br>';
+      html+=(ex.done?'&#10003; ':'&#9723; ')+'<b>'+ex.name+'</b><br>';
+      if(ex.sets&&ex.sets.length){
+        ex.sets.forEach(function(sv,si){
+          html+='&nbsp;&nbsp;&nbsp;Set '+(si+1)+': '+(sv.w||'—')+' lbs / '+(sv.r||'—')+' reps<br>';
+        });
+      }else{
+        var w=ex.weight?ex.weight+' lbs':'—';
+        var r=ex.reps||'—';
+        html+='&nbsp;&nbsp;&nbsp;'+w+' / '+r+'<br>';
+      }
     });
     html+='</div></div>';
   });
