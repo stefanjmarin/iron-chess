@@ -477,6 +477,12 @@ function renderToday(){
   });
   var alreadyLogged=workoutLogs.some(function(l){return l.date===todayStr()&&l.key===key});
   html+='<button class="complete-btn" onclick="completeWorkout(\''+key+'\')" id="completeBtn">'+(alreadyLogged?'Update workout':'Complete workout')+'</button>';
+  if(alreadyLogged){
+    html+='<div style="text-align:center;margin-top:10px;padding:10px;background:#e1f5ee;border-radius:8px;font-size:13px;color:#085041">';
+    html+='Workout submitted &#10003; — you can still edit weights, reps, and checkboxes above, then tap <b>Update workout</b> to save changes.';
+    html+='<div style="margin-top:8px"><button onclick="resetWorkout(\''+key+'\')" style="font-size:12px;color:#e24b4a;background:none;border:1px solid #e24b4a;border-radius:6px;cursor:pointer;padding:4px 12px">Reset and start over</button></div>';
+    html+='</div>';
+  }
   html+='<div class="sync-status" id="workoutSync"></div>';
   el.innerHTML=html;
 }
@@ -484,6 +490,15 @@ function renderToday(){
 function toggleEx(id){
   if(!todayExState[id]) todayExState[id]={done:false,sets:[]};
   todayExState[id].done=!todayExState[id].done;
+  save();
+  renderToday();
+}
+
+function resetWorkout(key){
+  if(!confirm('Reset today\'s workout? This clears all checkboxes, weights, and reps so you can start fresh.')) return;
+  var workout=EXERCISES[key];
+  workout.items.forEach(function(ex,i){delete todayExState[key+'-'+i];});
+  workoutLogs=workoutLogs.filter(function(l){return !(l.date===todayStr()&&l.key===key);});
   save();
   renderToday();
 }
