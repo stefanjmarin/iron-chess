@@ -1406,7 +1406,7 @@ function askCoach(){
   prompt+='4. One motivational tip tied to his chess background\n\n';
   prompt+='Keep it under 200 words. Be direct, specific, and encouraging. Use his actual numbers.';
 
-  var url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key='+GEMINI_KEY;
+  var url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+GEMINI_KEY;
   fetch(url,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
