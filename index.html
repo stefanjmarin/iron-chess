@@ -545,7 +545,7 @@ function syncWorkout(entry){
       rows.push([entry.date,entry.label,ex.name,'Set '+(si+1)+'/'+ex.targetSets,ex.targetReps,sv.w||'—',sv.r||'—',ex.done?'Yes':'No']);
     }
   });
-  postToSheet({sheet:'Workouts',rows:rows},function(){showSync('workoutSync')});
+  postToSheet({sheet:'Workouts',rows:rows,upsert:true},function(){showSync('workoutSync')});
 }
 
 function renderMeals(){
