@@ -234,6 +234,29 @@ body.dark .rest-fab{background:#e0e0e0;color:#111}
 .rest-btn-skip{background:#333;color:#fff}
 .rest-btn-close{background:#4ade80;color:#111}
 .rest-btn-restart{background:#333;color:#fff}
+
+.rank-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;font-size:13px}
+.rank-piece{font-size:24px}
+.rank-title{font-weight:700}
+.rank-elo{color:#888;font-size:12px}
+.elo-bar{width:120px;height:6px;background:#e8e6e1;border-radius:3px;overflow:hidden;margin-left:4px}
+.elo-bar .fill{height:100%;background:#c9a94e;border-radius:3px;transition:width .5s}
+.achievements-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.badge-card{text-align:center;padding:12px 8px;border-radius:12px;border:1px solid #e8e6e1;background:#faf9f6;position:relative;transition:transform .2s}
+.badge-card.locked{opacity:.4;filter:grayscale(1)}
+.badge-card .badge-icon{font-size:32px;display:block;margin-bottom:4px}
+.badge-card .badge-name{font-size:11px;font-weight:600;color:#1a1a1a;line-height:1.2}
+.badge-card .badge-desc{font-size:10px;color:#888;margin-top:2px}
+.badge-card.gold{border-color:#c9a94e;background:#fdf8e8}
+.badge-card.gold .badge-name{color:#854f0b}
+.pr-flash{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1a;color:#c9a94e;padding:20px 32px;border-radius:16px;font-size:18px;font-weight:700;z-index:200;text-align:center;animation:prPop .6s ease-out;pointer-events:none;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+@keyframes prPop{0%{transform:translate(-50%,-50%) scale(0.3);opacity:0}50%{transform:translate(-50%,-50%) scale(1.1)}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+body.dark .badge-card{background:#222;border-color:#333}
+body.dark .badge-card .badge-name{color:#e0e0e0}
+body.dark .badge-card.gold{background:#2e2a0a;border-color:#c9a94e}
+body.dark .badge-card.gold .badge-name{color:#fbbf24}
+body.dark .elo-bar{background:#333}
+body.dark .rank-title{color:#e0e0e0}
 body.dark .browse-card{background:#222;border-color:#333}
 body.dark .browse-card .browse-header{color:#e0e0e0}
 body.dark .browse-card .browse-note{color:#777}
@@ -248,6 +271,7 @@ body.dark .browse-card .browse-note{color:#777}
     <div class="tag">HOME GYM PROGRAM</div>
     <h1>Iron Chess</h1>
     <div class="today-badge" id="todayBadge"></div>
+    <div class="rank-bar" id="rankBar"></div>
   </div>
 
   <div class="nav" id="nav">
@@ -321,7 +345,11 @@ body.dark .browse-card .browse-note{color:#777}
 
   <!-- HISTORY -->
   <div class="section" id="sec-history">
-    <h2>Progress</h2>
+    <h2>Chess rank</h2>
+    <div id="rankDetail"></div>
+    <h2 style="margin-top:16px">Achievements</h2>
+    <div class="achievements-grid" id="achieveGrid"></div>
+    <h2 style="margin-top:16px">Progress</h2>
     <div class="streak-card" id="streakCard"></div>
     <div style="margin:16px 0">
       <h2>Progress chart</h2>
@@ -727,6 +755,8 @@ function completeWorkout(key){
   if(existingIdx>=0){workoutLogs[existingIdx]=entry;}else{workoutLogs.push(entry);}
   save();
   syncWorkout(entry);
+  checkForPR(entry);
+  renderRankBar();
   renderToday();
 }
 
@@ -913,6 +943,7 @@ function renderHistory(){
   });
   el.innerHTML=html;
   renderChart();
+  renderAchievements();
 }
 
 function toggleLog(idx){
@@ -1076,14 +1107,195 @@ function showSync(id){
 
 function init(){
   load();
+  loadPRs();
   renderToday();
   showRestFab(true);
+  renderRankBar();
   renderMeals();
   renderMeasureForm();
   renderMeasureHistory();
   renderSchedule();
   renderMonthSel();
   renderBrowse();
+}
+
+// ===== CHESS ACHIEVEMENT SYSTEM =====
+var personalRecords={};
+function loadPRs(){try{personalRecords=JSON.parse(localStorage.getItem('ironChessPRs'))||{};}catch(e){personalRecords={};}}
+function savePRs(){localStorage.setItem('ironChessPRs',JSON.stringify(personalRecords));}
+
+var CHESS_TITLES=[
+  {min:0,title:'Pawn',piece:'♟',desc:'Every grandmaster was once a beginner'},
+  {min:600,title:'Knight',piece:'♞',desc:'Jumping into action'},
+  {min:800,title:'Bishop',piece:'♝',desc:'Diagonal gains'},
+  {min:1000,title:'Rook',piece:'♜',desc:'Tower of strength'},
+  {min:1200,title:'Queen',piece:'♛',desc:'Unstoppable force'},
+  {min:1400,title:'King',piece:'♚',desc:'Expert'},
+  {min:1600,title:'Candidate Master',piece:'♚',desc:'CM — serious contender'},
+  {min:1800,title:'National Master',piece:'♚',desc:'NM — elite territory'},
+  {min:2000,title:'FIDE Master',piece:'♚',desc:'FM — international level'},
+  {min:2200,title:'International Master',piece:'♚',desc:'IM — world class'},
+  {min:2500,title:'Grandmaster',piece:'♚',desc:'GM — legendary status'}
+];
+
+var BADGES=[
+  {id:'first',name:'Opening Move',icon:'♟',desc:'Complete first workout',check:function(s){return s.total>=1}},
+  {id:'week1',name:'Sicilian Defense',icon:'♞',desc:'7-day streak',check:function(s){return s.streak>=7}},
+  {id:'month1',name:"King's Indian",icon:'♝',desc:'30-day streak',check:function(s){return s.streak>=30}},
+  {id:'ten',name:'Development',icon:'♟',desc:'10 workouts completed',check:function(s){return s.total>=10}},
+  {id:'twentyfive',name:'Middlegame',icon:'♜',desc:'25 workouts completed',check:function(s){return s.total>=25}},
+  {id:'fifty',name:'Endgame',icon:'♛',desc:'50 workouts completed',check:function(s){return s.total>=50}},
+  {id:'hundred',name:'World Champion',icon:'♚',desc:'100 workouts completed',check:function(s){return s.total>=100}},
+  {id:'firstpr',name:'Pawn Promotion',icon:'♟',desc:'First personal record',check:function(s){return s.prCount>=1}},
+  {id:'pr5',name:"Knight's Gambit",icon:'♞',desc:'5 personal records',check:function(s){return s.prCount>=5}},
+  {id:'pr15',name:"Queen's Gambit",icon:'♛',desc:'15 personal records',check:function(s){return s.prCount>=15}},
+  {id:'perfect',name:'Checkmate',icon:'♚',desc:'100% completion in a workout',check:function(s){return s.hasPerfect}},
+  {id:'alldays',name:'Full Board',icon:'♜',desc:'Complete all 3 workout days in a week',check:function(s){return s.allDaysInWeek}},
+];
+
+function getStats(){
+  var s={total:workoutLogs.length,streak:0,prCount:Object.keys(personalRecords).length,hasPerfect:false,allDaysInWeek:false,weekWorkouts:0};
+  // Streak
+  var dates=workoutLogs.map(function(l){return l.date}).filter(function(v,i,a){return a.indexOf(v)===i}).sort().reverse();
+  if(dates.length>0){
+    var today=todayStr();
+    var d=new Date(today);
+    s.streak=0;
+    for(var i=0;i<400;i++){
+      var ds=d.toISOString().split('T')[0];
+      if(dates.indexOf(ds)>=0||!isWorkoutDay(d)){
+        if(dates.indexOf(ds)>=0) s.streak++;
+        d.setDate(d.getDate()-1);
+      }else{break;}
+    }
+  }
+  // Perfect workout
+  workoutLogs.forEach(function(l){
+    if(l.exercises.every(function(ex){return ex.done})) s.hasPerfect=true;
+  });
+  // All 3 days in a week
+  var thisWeekDays={};
+  var now=new Date();
+  var weekStart=new Date(now);weekStart.setDate(now.getDate()-now.getDay());
+  workoutLogs.forEach(function(l){
+    var ld=new Date(l.date);
+    if(ld>=weekStart) thisWeekDays[l.key]=true;
+  });
+  if(Object.keys(thisWeekDays).length>=3) s.allDaysInWeek=true;
+  // Week count
+  s.weekWorkouts=workoutLogs.filter(function(l){var d=new Date(l.date);return(now-d)/(1000*60*60*24)<7}).length;
+  return s;
+}
+
+function isWorkoutDay(d){
+  var dow=d.getDay();
+  return DAY_MAP[dow]?true:false;
+}
+
+function calcElo(){
+  var elo=400;
+  elo+=workoutLogs.length*12;
+  elo+=Object.keys(personalRecords).length*20;
+  var stats=getStats();
+  elo+=Math.min(stats.streak,90)*3;
+  if(stats.total>=10) elo+=30;
+  if(stats.total>=25) elo+=50;
+  if(stats.total>=50) elo+=75;
+  if(stats.total>=100) elo+=100;
+  if(stats.hasPerfect) elo+=25;
+  return Math.min(elo,3000);
+}
+
+function getTitle(elo){
+  var t=CHESS_TITLES[0];
+  for(var i=0;i<CHESS_TITLES.length;i++){
+    if(elo>=CHESS_TITLES[i].min) t=CHESS_TITLES[i];
+  }
+  return t;
+}
+
+function getNextTitle(elo){
+  for(var i=0;i<CHESS_TITLES.length;i++){
+    if(elo<CHESS_TITLES[i].min) return CHESS_TITLES[i];
+  }
+  return null;
+}
+
+function renderRankBar(){
+  var elo=calcElo();
+  var t=getTitle(elo);
+  var next=getNextTitle(elo);
+  var pct=100;
+  if(next){pct=Math.round(((elo-t.min)/(next.min-t.min))*100);}
+  var el=document.getElementById('rankBar');
+  if(!el) return;
+  el.innerHTML='<span class="rank-piece">'+t.piece+'</span><span class="rank-title">'+t.title+'</span><span class="rank-elo">'+elo+' Elo</span><div class="elo-bar"><div class="fill" style="width:'+pct+'%"></div></div>';
+}
+
+function renderAchievements(){
+  var grid=document.getElementById('achieveGrid');
+  var detail=document.getElementById('rankDetail');
+  if(!grid) return;
+  var stats=getStats();
+  var elo=calcElo();
+  var t=getTitle(elo);
+  var next=getNextTitle(elo);
+  // Rank detail card
+  var dh='<div style="text-align:center;padding:16px;border:1px solid #e8e6e1;border-radius:12px;background:#faf9f6">';
+  dh+='<div style="font-size:48px">'+t.piece+'</div>';
+  dh+='<div style="font-size:20px;font-weight:700;margin:4px 0">'+t.title+'</div>';
+  dh+='<div style="font-size:14px;color:#888">'+t.desc+'</div>';
+  dh+='<div style="font-size:28px;font-weight:700;color:#c9a94e;margin:8px 0">'+elo+' Elo</div>';
+  if(next){dh+='<div style="font-size:12px;color:#888">Next: '+next.title+' ('+next.min+' Elo — '+(next.min-elo)+' to go)</div>';}
+  else{dh+='<div style="font-size:12px;color:#c9a94e">Maximum rank achieved!</div>';}
+  dh+='<div style="margin:10px auto;width:80%;height:8px;background:#e8e6e1;border-radius:4px;overflow:hidden"><div style="height:100%;background:#c9a94e;border-radius:4px;width:'+(next?Math.round(((elo-t.min)/(next.min-t.min))*100):100)+'%"></div></div>';
+  dh+='</div>';
+  if(document.body.classList.contains('dark')){
+    dh=dh.replace(/background:#faf9f6/g,'background:#222').replace(/border-color:#e8e6e1/g,'border-color:#333').replace(/background:#e8e6e1/g,'background:#333');
+  }
+  detail.innerHTML=dh;
+  // Badges
+  var html='';
+  BADGES.forEach(function(b){
+    var unlocked=b.check(stats);
+    html+='<div class="badge-card '+(unlocked?'gold':'locked')+'">';
+    html+='<span class="badge-icon">'+b.icon+'</span>';
+    html+='<div class="badge-name">'+b.name+'</div>';
+    html+='<div class="badge-desc">'+b.desc+'</div>';
+    html+='</div>';
+  });
+  grid.innerHTML=html;
+}
+
+function checkForPR(entry){
+  var newPRs=[];
+  entry.exercises.forEach(function(ex){
+    if(!ex.sets) return;
+    ex.sets.forEach(function(sv){
+      var w=parseFloat(sv.w)||0;
+      if(w<=0||sv.w==='BW') return;
+      var key=ex.name;
+      if(!personalRecords[key]||w>personalRecords[key]){
+        personalRecords[key]=w;
+        newPRs.push({name:ex.name,weight:w});
+      }
+    });
+  });
+  if(newPRs.length>0){
+    savePRs();
+    renderRankBar();
+    newPRs.forEach(function(pr,i){
+      setTimeout(function(){showPRFlash(pr)},i*1200);
+    });
+  }
+}
+
+function showPRFlash(pr){
+  var div=document.createElement('div');
+  div.className='pr-flash';
+  div.innerHTML='♚ NEW PR!<br><span style="font-size:14px;color:#fff">'+pr.name+'</span><br><span style="font-size:22px">'+pr.weight+' lbs</span>';
+  document.body.appendChild(div);
+  setTimeout(function(){div.remove()},2500);
 }
 
 init();
