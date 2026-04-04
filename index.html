@@ -1389,7 +1389,7 @@ function showPRFlash(pr){
 var GEMINI_KEY='AIzaSyBSM-xgtxlaNJdE00VBS4tZD7ilqImqW9k';
 
 function askCoach(){
-  if(GEMINI_KEY==='AIzaSyBSM-xgtxlaNJdE00VBS4tZD7ilqImqW9k'){
+  if(!GEMINI_KEY||GEMINI_KEY.length<20||GEMINI_KEY.indexOf('PASTE')>=0){
     alert('API key not set. Open the HTML file and find GEMINI_KEY to add your key.');return;
   }
   var overlay=document.getElementById('coachOverlay');
