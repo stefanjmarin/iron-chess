@@ -219,6 +219,21 @@ body.dark .measure-form input{background:#2a2a2a;border-color:#444;color:#e0e0e0
 body.dark .footer{color:#444}
 body.dark #chartExercise{background:#2a2a2a;color:#e0e0e0;border-color:#444}
 body.dark #progressChart{background:#222}
+
+.rest-fab{position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;background:#1a1a1a;color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.25);z-index:50;display:none;align-items:center;justify-content:center}
+body.dark .rest-fab{background:#e0e0e0;color:#111}
+.rest-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center;flex-direction:column}
+.rest-overlay.show{display:flex}
+.rest-circle{position:relative;width:200px;height:200px}
+.rest-circle svg{transform:rotate(-90deg)}
+.rest-circle .time{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:700;color:#fff;font-family:monospace}
+.rest-label{color:#999;font-size:14px;margin-top:16px;text-align:center}
+.rest-done-label{color:#4ade80;font-size:22px;font-weight:700;margin-top:16px}
+.rest-buttons{display:flex;gap:12px;margin-top:24px}
+.rest-buttons button{padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none}
+.rest-btn-skip{background:#333;color:#fff}
+.rest-btn-close{background:#4ade80;color:#111}
+.rest-btn-restart{background:#333;color:#fff}
 body.dark .browse-card{background:#222;border-color:#333}
 body.dark .browse-card .browse-header{color:#e0e0e0}
 body.dark .browse-card .browse-note{color:#777}
@@ -512,6 +527,89 @@ function toggleDark(){
   if(pref===null||pref==='1'){document.body.classList.add('dark');document.getElementById('darkBtn').textContent='☀';}
 })();
 
+var restTimer=null;
+var restSeconds=90;
+var REST_DURATION=90;
+
+function showRestFab(show){
+  var fab=document.getElementById('restFab');
+  if(fab) fab.style.display=show?'flex':'none';
+}
+
+function startRest(){
+  restSeconds=REST_DURATION;
+  var overlay=document.getElementById('restOverlay');
+  overlay.classList.add('show');
+  document.getElementById('restLabel').className='rest-label';
+  document.getElementById('restLabel').textContent='Rest between sets';
+  document.getElementById('restRestartBtn').style.display='none';
+  document.getElementById('restCloseBtn').style.display='none';
+  document.querySelector('.rest-btn-skip').style.display='';
+  document.getElementById('restArc').style.stroke='#4ade80';
+  if(restTimer) clearInterval(restTimer);
+  updateRestDisplay();
+  restTimer=setInterval(function(){
+    restSeconds--;
+    updateRestDisplay();
+    if(restSeconds<=0){
+      clearInterval(restTimer);
+      restTimer=null;
+      restDone();
+    }
+  },1000);
+}
+
+function updateRestDisplay(){
+  var min=Math.floor(restSeconds/60);
+  var sec=restSeconds%60;
+  document.getElementById('restTime').textContent=min+':'+(sec<10?'0':'')+sec;
+  var pct=1-(restSeconds/REST_DURATION);
+  var arc=document.getElementById('restArc');
+  arc.setAttribute('stroke-dashoffset', (pct*565.5).toString());
+  if(restSeconds<=10&&restSeconds>0){arc.style.stroke='#fbbf24';}
+}
+
+function restDone(){
+  document.getElementById('restTime').textContent='GO!';
+  document.getElementById('restArc').style.stroke='#4ade80';
+  document.getElementById('restArc').setAttribute('stroke-dashoffset','565.5');
+  document.getElementById('restLabel').className='rest-done-label';
+  document.getElementById('restLabel').textContent='Time for next set!';
+  document.querySelector('.rest-btn-skip').style.display='none';
+  document.getElementById('restRestartBtn').style.display='';
+  document.getElementById('restCloseBtn').style.display='';
+  playChime();
+}
+
+function skipRest(){
+  if(restTimer){clearInterval(restTimer);restTimer=null;}
+  closeRest();
+}
+
+function closeRest(){
+  if(restTimer){clearInterval(restTimer);restTimer=null;}
+  document.getElementById('restOverlay').classList.remove('show');
+}
+
+function playChime(){
+  try{
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var notes=[523.25,659.25,783.99];
+    notes.forEach(function(freq,i){
+      var osc=ctx.createOscillator();
+      var gain=ctx.createGain();
+      osc.type='sine';
+      osc.frequency.value=freq;
+      gain.gain.setValueAtTime(0.3,ctx.currentTime+i*0.15);
+      gain.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+i*0.15+0.5);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime+i*0.15);
+      osc.stop(ctx.currentTime+i*0.15+0.5);
+    });
+  }catch(e){}
+}
+
 function go(id){
   document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active')});
   document.getElementById('sec-'+id).classList.add('active');
@@ -522,6 +620,7 @@ function go(id){
   if(id==='history') renderHistory();
   if(id==='nutrition') renderMeals();
   if(id==='tracker') renderMeasureHistory();
+  showRestFab(id==='today');
 }
 
 function getTodayWorkout(){
@@ -978,6 +1077,7 @@ function showSync(id){
 function init(){
   load();
   renderToday();
+  showRestFab(true);
   renderMeals();
   renderMeasureForm();
   renderMeasureHistory();
@@ -988,5 +1088,21 @@ function init(){
 
 init();
 </script>
+  <button class="rest-fab" id="restFab" onclick="startRest()">&#9202;</button>
+  <div class="rest-overlay" id="restOverlay">
+    <div class="rest-circle">
+      <svg width="200" height="200" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="90" fill="none" stroke="#333" stroke-width="8"/>
+        <circle cx="100" cy="100" r="90" fill="none" stroke="#4ade80" stroke-width="8" stroke-linecap="round" id="restArc" stroke-dasharray="565.5" stroke-dashoffset="0"/>
+      </svg>
+      <div class="time" id="restTime">1:30</div>
+    </div>
+    <div id="restLabel" class="rest-label">Rest between sets</div>
+    <div class="rest-buttons" id="restButtons">
+      <button class="rest-btn-skip" onclick="skipRest()">Skip</button>
+      <button class="rest-btn-restart" onclick="startRest()" style="display:none" id="restRestartBtn">Again</button>
+      <button class="rest-btn-close" onclick="closeRest()" style="display:none" id="restCloseBtn">Done</button>
+    </div>
+  </div>
 </body>
 </html>
