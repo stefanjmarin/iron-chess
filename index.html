@@ -391,6 +391,7 @@ var workoutLogs = [];
 var sheetUrl = 'https://script.google.com/macros/s/AKfycbwOttaJfbt_30qobjBiTy6-x89h-ylo-0EnxDzYEJJWJHVn7CRCzxFn0ATIfTwZjRnp/exec';
 var currentMonth = 0;
 var openBrowse = null;
+var expandedLog = null;
 
 function load(){
   try{measurements=JSON.parse(localStorage.getItem('ic-measures')||'[]')}catch(e){measurements=[]}
@@ -673,23 +674,59 @@ function renderHistory(){
   streak.innerHTML='<div class="streak-box"><div class="num">'+total+'</div><div class="lbl">Total workouts</div></div><div class="streak-box"><div class="num">'+thisWeek+'</div><div class="lbl">This week</div></div>';
   if(!workoutLogs.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:#888;font-size:13px">No workouts logged yet. Complete your first workout on the Today tab.</div>';return}
   var html='';
-  workoutLogs.slice().reverse().forEach(function(log){
-    html+='<div class="log-entry"><div class="log-date">'+log.date+'</div><div class="log-day">'+log.label+'</div><div class="log-exercises">';
-    log.exercises.forEach(function(ex){
-      html+=(ex.done?'&#10003; ':'&#9723; ')+'<b>'+ex.name+'</b><br>';
-      if(ex.sets&&ex.sets.length){
-        ex.sets.forEach(function(sv,si){
-          html+='&nbsp;&nbsp;&nbsp;Set '+(si+1)+': '+(sv.w||'—')+' lbs / '+(sv.r||'—')+' reps<br>';
-        });
-      }else{
-        var w=ex.weight?ex.weight+' lbs':'—';
-        var r=ex.reps||'—';
-        html+='&nbsp;&nbsp;&nbsp;'+w+' / '+r+'<br>';
+  var today=todayStr();
+  workoutLogs.slice().reverse().forEach(function(log,idx){
+    var logId=workoutLogs.length-1-idx;
+    var isOpen=expandedLog===logId;
+    var isToday=log.date===today;
+    var doneCount=log.exercises.filter(function(ex){return ex.done}).length;
+    var totalEx=log.exercises.length;
+    
+    html+='<div class="log-entry" style="padding:0;overflow:hidden">';
+    html+='<div onclick="toggleLog('+logId+')" style="padding:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">';
+    html+='<div><div class="log-date" style="margin-bottom:2px">'+log.date+(isToday?' <span style="font-size:11px;color:#185fa5;background:#e6f0fb;padding:1px 6px;border-radius:10px">today</span>':'')+'</div>';
+    html+='<div class="log-day" style="margin-bottom:2px">'+log.label+'</div>';
+    html+='<div style="font-size:12px;color:#888">'+doneCount+'/'+totalEx+' exercises completed</div></div>';
+    html+='<span style="font-size:12px;color:#888;transition:transform .2s;display:inline-block;transform:rotate('+(isOpen?'180':'0')+'deg)">&#9660;</span>';
+    html+='</div>';
+    
+    if(isOpen){
+      html+='<div style="padding:0 12px 12px;border-top:1px solid #e8e6e1">';
+      log.exercises.forEach(function(ex){
+        html+='<div style="padding:8px 0;border-bottom:1px solid #f0efeb">';
+        html+='<div style="font-size:13px;font-weight:600">'+(ex.done?'&#10003; ':'&#9723; ')+ex.name+'</div>';
+        if(ex.sets&&ex.sets.length){
+          html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:4px">';
+          ex.sets.forEach(function(sv,si){
+            var hasData=sv.w||sv.r;
+            html+='<div style="font-size:11px;color:'+(hasData?'#444':'#bbb')+';background:#faf9f6;padding:4px 6px;border-radius:4px;text-align:center">';
+            html+='<div style="font-size:10px;color:#999;margin-bottom:1px">Set '+(si+1)+'</div>';
+            html+=(sv.w||'—')+' / '+(sv.r||'—');
+            html+='</div>';
+          });
+          html+='</div>';
+        }else if(ex.weight||ex.reps){
+          html+='<div style="font-size:12px;color:#666;margin-top:2px">'+(ex.weight||'—')+' lbs / '+(ex.reps||'—')+' reps</div>';
+        }
+        html+='</div>';
+      });
+      if(isToday){
+        html+='<button onclick="editTodayWorkout()" style="width:100%;margin-top:10px;padding:10px;font-size:13px;font-weight:600;background:#e6f0fb;color:#185fa5;border:1px solid #b5d4f4;border-radius:8px;cursor:pointer">Edit this workout</button>';
       }
-    });
-    html+='</div></div>';
+      html+='</div>';
+    }
+    html+='</div>';
   });
   el.innerHTML=html;
+}
+
+function toggleLog(idx){
+  expandedLog=expandedLog===idx?null:idx;
+  renderHistory();
+}
+
+function editTodayWorkout(){
+  go('today');
 }
 
 function renderSchedule(){
