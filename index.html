@@ -257,6 +257,9 @@ body.dark .badge-card.gold{background:#2e2a0a;border-color:#c9a94e}
 body.dark .badge-card.gold .badge-name{color:#fbbf24}
 body.dark .elo-bar{background:#333}
 body.dark .rank-title{color:#e0e0e0}
+
+.level-up{display:inline-block;font-size:11px;font-weight:600;color:#0f6e56;background:#e1f5ee;border:1px solid #9fe1cb;border-radius:6px;padding:2px 8px;margin-top:4px}
+body.dark .level-up{color:#4ade80;background:#1a2e1a;border-color:#2a4a2a}
 body.dark .browse-card{background:#222;border-color:#333}
 body.dark .browse-card .browse-header{color:#e0e0e0}
 body.dark .browse-card .browse-note{color:#777}
@@ -416,7 +419,8 @@ body.dark .browse-card .browse-note{color:#777}
         <b>-10 Elo</b> for every exercise you don't complete<br><br>
         <b>Title progression:</b><br>
         400+ Pawn ♟ &rarr; 600+ Knight ♞ &rarr; 800+ Bishop ♝ &rarr; 1000+ Rook ♜ &rarr; 1200+ Queen ♛ &rarr; 1400+ King ♚ &rarr; 1600+ Candidate Master &rarr; 1800+ National Master &rarr; 2000+ FIDE Master &rarr; 2200+ International Master &rarr; 2500+ Grandmaster<br><br>
-        <b>How fast can you reach GM?</b> At 3 workouts/week with zero skips and all exercises done: ~9 months. Skip 1 day? That's -30 Elo — you need 2-3 perfect workouts just to recover. Skip an exercise? -10. There are no shortcuts. Show up, finish everything, chase PRs.
+        <b>How fast can you reach GM?</b> At 3 workouts/week with zero skips and all exercises done: ~9 months. Skip 1 day? That's -30 Elo — you need 2-3 perfect workouts just to recover. Skip an exercise? -10. There are no shortcuts. Show up, finish everything, chase PRs.<br><br>
+        <b>Auto progression:</b> When you hit your target reps for 3 sessions in a row at the same weight, a green &#9650; badge appears telling you to increase the weight. Follow it — that's how you get stronger and earn PRs.
       </div>
     </div>
     <div class="tip-box plain">
@@ -701,6 +705,8 @@ function renderToday(){
     html+='<div class="check" onclick="toggleEx(\''+id+'\')">'+(state.done?'&#10003;':'')+'</div>';
     html+='<div class="ex-info"><div class="ex-name"><a href="'+YT(ex.yt)+'" target="_blank">'+ex.name+' &#8599;</a></div>';
     html+='<div class="ex-target">Target: '+ex.sets+' sets &times; '+ex.reps+' reps</div>';
+    var prog=getProgression(ex.name,ex.bw);
+    if(prog){html+='<div class="level-up">&#9650; '+prog.msg+'</div>';}
     html+='<div class="ex-note">'+ex.note+'</div></div></div>';
     for(var si=0;si<numSets;si++){
       var sv=state.sets[si]||{w:'',r:''};
@@ -1360,6 +1366,43 @@ function showPRFlash(pr){
   div.innerHTML='♚ NEW PR!<br><span style="font-size:14px;color:#fff">'+pr.name+'</span><br><span style="font-size:22px">'+pr.weight+' lbs</span>';
   document.body.appendChild(div);
   setTimeout(function(){div.remove()},2500);
+}
+
+function getProgression(exName, isBW){
+  var sessions=[];
+  workoutLogs.slice().reverse().forEach(function(log){
+    log.exercises.forEach(function(ex){
+      if(ex.name===exName&&sessions.length<3){
+        var w=0,totalReps=0,setCount=0;
+        if(ex.sets&&ex.sets.length){
+          ex.sets.forEach(function(sv){
+            var sw=parseFloat(sv.w)||0;
+            var sr=parseFloat(sv.r)||0;
+            if(sw>0||sv.w==='BW'){w=sw||0;totalReps+=sr;setCount++;}
+          });
+        }
+        if(setCount>0) sessions.push({weight:w,avgReps:Math.round(totalReps/setCount),done:ex.done});
+      }
+    });
+  });
+  if(sessions.length<3) return null;
+  var allDone=sessions.every(function(s){return s.done});
+  var sameWeight=sessions.every(function(s){return s.weight===sessions[0].weight});
+  var allHitReps=sessions.every(function(s){return s.avgReps>=8});
+  if(!allDone||!sameWeight||!allHitReps) return null;
+  var currentW=sessions[0].weight;
+  // Equipment detection
+  var name=exName.toLowerCase();
+  if(isBW) return {msg:'Ready! Try BW + 5 lbs (band or plate)',current:'BW'};
+  if(name.indexOf('barbell')>=0||name.indexOf('ez bar')>=0){
+    // Barbell/EZ bar: smallest plates are 10 lbs each = +20 total
+    if(currentW<30){
+      return {msg:'Strong at '+currentW+' lbs! Try adding a resistance band for extra challenge before jumping +20 lbs',current:currentW};
+    }
+    return {msg:'Level up! Try '+(currentW+20)+' lbs (+10 per side)',current:currentW};
+  }
+  // Dumbbells: +5 lbs per dumbbell
+  return {msg:'Level up! Try '+(currentW+5)+' lbs',current:currentW};
 }
 
 init();
