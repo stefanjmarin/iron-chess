@@ -402,6 +402,24 @@ body.dark .browse-card .browse-note{color:#777}
       <div class="body">Wear supportive shoes on leg day &bull; Goblet squats over back squats &bull; Stationary lunges only &bull; Seated overhead press &bull; Consider arch-support insoles</div>
     </div>
     <div class="tip-box plain">
+      <div class="title">How your Chess Elo works</div>
+      <div class="body">
+        Your fitness Elo starts at 400, just like a beginner chess player. Here's how you earn and lose points:<br><br>
+        <b style="color:#0f6e56">GAINS:</b><br>
+        <b>+12 Elo</b> for every workout completed<br>
+        <b>+20 Elo</b> for every personal record (heaviest weight on an exercise)<br>
+        <b>+3 Elo</b> for each day of your active streak (up to 90 days)<br>
+        <b>+25 Elo</b> bonus for getting 100% completion in a workout<br>
+        <b>+30 to +100 Elo</b> milestone bonuses at 10, 25, 50, and 100 workouts<br><br>
+        <b style="color:#e24b4a">LOSSES:</b><br>
+        <b>-30 Elo</b> for every scheduled workout day you skip<br>
+        <b>-10 Elo</b> for every exercise you don't complete<br><br>
+        <b>Title progression:</b><br>
+        400+ Pawn ♟ &rarr; 600+ Knight ♞ &rarr; 800+ Bishop ♝ &rarr; 1000+ Rook ♜ &rarr; 1200+ Queen ♛ &rarr; 1400+ King ♚ &rarr; 1600+ Candidate Master &rarr; 1800+ National Master &rarr; 2000+ FIDE Master &rarr; 2200+ International Master &rarr; 2500+ Grandmaster<br><br>
+        <b>How fast can you reach GM?</b> At 3 workouts/week with zero skips and all exercises done: ~9 months. Skip 1 day? That's -30 Elo — you need 2-3 perfect workouts just to recover. Skip an exercise? -10. There are no shortcuts. Show up, finish everything, chase PRs.
+      </div>
+    </div>
+    <div class="tip-box plain">
       <div class="title">The golden rules</div>
       <div class="body">
         1. Form over weight — always<br>
@@ -1121,7 +1139,27 @@ function init(){
 
 // ===== CHESS ACHIEVEMENT SYSTEM =====
 var personalRecords={};
-function loadPRs(){try{personalRecords=JSON.parse(localStorage.getItem('ironChessPRs'))||{};}catch(e){personalRecords={};}}
+function loadPRs(){
+  try{personalRecords=JSON.parse(localStorage.getItem('ironChessPRs'))||{};}catch(e){personalRecords={};}
+  // Scan existing logs to build PRs if empty (first time with this feature)
+  if(Object.keys(personalRecords).length===0&&workoutLogs.length>0){
+    workoutLogs.forEach(function(log){
+      log.exercises.forEach(function(ex){
+        if(ex.sets){
+          ex.sets.forEach(function(sv){
+            var w=parseFloat(sv.w)||0;
+            if(w<=0||sv.w==='BW') return;
+            if(!personalRecords[ex.name]||w>personalRecords[ex.name]) personalRecords[ex.name]=w;
+          });
+        }else if(ex.weight){
+          var w=parseFloat(ex.weight)||0;
+          if(w>0&&(!personalRecords[ex.name]||w>personalRecords[ex.name])) personalRecords[ex.name]=w;
+        }
+      });
+    });
+    savePRs();
+  }
+}
 function savePRs(){localStorage.setItem('ironChessPRs',JSON.stringify(personalRecords));}
 
 var CHESS_TITLES=[
@@ -1203,7 +1241,33 @@ function calcElo(){
   if(stats.total>=50) elo+=75;
   if(stats.total>=100) elo+=100;
   if(stats.hasPerfect) elo+=25;
-  return Math.min(elo,3000);
+  // Elo LOSS: -30 for each missed scheduled workout day
+  var missed=countMissedDays();
+  elo-=missed*30;
+  // Elo LOSS: -10 for each exercise not marked as done
+  workoutLogs.forEach(function(l){
+    l.exercises.forEach(function(ex){
+      if(!ex.done) elo-=10;
+    });
+  });
+  return Math.max(Math.min(elo,3000),100);
+}
+
+function countMissedDays(){
+  if(!workoutLogs.length) return 0;
+  var dates=workoutLogs.map(function(l){return l.date});
+  var firstDate=new Date(dates.sort()[0]);
+  var today=new Date(todayStr());
+  var missed=0;
+  var d=new Date(firstDate);
+  while(d<=today){
+    var ds=d.toISOString().split('T')[0];
+    if(isWorkoutDay(d)&&dates.indexOf(ds)<0){
+      missed++;
+    }
+    d.setDate(d.getDate()+1);
+  }
+  return missed;
 }
 
 function getTitle(elo){
