@@ -157,7 +157,7 @@ h2{font-size:16px;font-weight:700;margin:0 0 10px}
 .sched-row .day-workout{color:#666}
 .sched-row.today{background:#e6f0fb;border:1px solid #b5d4f4}
 .sched-row.today .day-name{color:#185fa5}
-.dark-toggle{position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;padding:4px;opacity:0.6}
+.dark-toggle{position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;cursor:pointer;padding:6px;opacity:1;color:#c9a94e}
 
 body.dark{background:#111;color:#e0e0e0}
 body.dark .header{background:#111}
@@ -177,7 +177,8 @@ body.dark .log-row{border-top-color:#333 !important}
 body.dark .log-input label{color:#888}
 body.dark .log-input input{background:#2a2a2a;border-color:#444;color:#e0e0e0}
 body.dark .check{border-color:#555;color:#4ade80}
-body.dark .warmup-mini{background:#222;border-color:#333;color:#999}
+body.dark .warmup-mini{background:#222;border-color:#444;color:#ccc}
+body.dark .warmup-mini b{color:#fff}
 body.dark .workout-day-label{background:#1a2e0a;color:#7BFF00;border-color:#2a4a1a}
 body.dark .complete-btn{background:#e0e0e0;color:#111}
 body.dark .setup-box{background:#222;border-color:#333}
@@ -203,10 +204,17 @@ body.dark .log-entry{background:#222;border-color:#333}
 body.dark .log-date{color:#e0e0e0}
 body.dark .log-day{color:#6ab4f7}
 body.dark .meal-day-card{background:#222;border-color:#333}
-body.dark .meal-header .name{color:#e0e0e0}
-body.dark .meal-header .prot{color:#888}
-body.dark .meal-option{background:#2a2a2a;border-color:#444;color:#e0e0e0}
+body.dark .meal-header{background:#2a2a2a}
+body.dark .meal-header .name{color:#fff}
+body.dark .meal-header .prot{color:#c9a94e}
+body.dark .meal-option{background:#2a2a2a;border-color:#444;color:#fff !important}
+body.dark .meal-option *{color:#fff !important}
 body.dark .meal-option.picked{background:#1a2e1a;border-color:#2a4a2a}
+body.dark .meal-option.picked *{color:#4ade80 !important}
+body.dark .protein-bar{background:#2a2a2a}
+body.dark .protein-bar .label{color:#ccc}
+body.dark .protein-bar .label span{color:#ccc}
+body.dark .protein-bar .count{color:#fff}
 body.dark .protein-bar .bar{background:#333}
 body.dark .sched-row{background:#222;color:#e0e0e0}
 body.dark .sched-row.today{background:#1a2e0a;border-color:#7BFF00}
@@ -217,6 +225,9 @@ body.dark .measure-form{background:#222;border-color:#333}
 body.dark .measure-form label{color:#888}
 body.dark .measure-form input{background:#2a2a2a;border-color:#444;color:#e0e0e0}
 body.dark .footer{color:#444}
+body.dark [style*="background:#eae8e3"]{background:#222 !important;color:#fff !important}
+body.dark [style*="background:#eae8e3"] *{color:#fff !important}
+body.dark [style*="background:#faf9f6"]{background:#1a1a1a !important}
 body.dark #chartExercise{background:#2a2a2a;color:#e0e0e0;border-color:#444}
 body.dark #progressChart{background:#222}
 
@@ -454,7 +465,7 @@ body.dark .browse-card .browse-note{color:#777}
     </div>
   </div>
 
-  <div class="footer">Iron Chess — Built with care by Dad + Claude</div>
+  <div class="footer">Iron Chess — Built by Stefan J Marin</div>
 </div>
 
 <script>
@@ -1386,7 +1397,7 @@ function showPRFlash(pr){
 
 // ===== AI COACH (Gemini 2.5 Flash) =====
 // PASTE YOUR GEMINI API KEY BELOW between the quotes:
-var GEMINI_KEY='AIzaSyBSM-xgtxlaNJdE00VBS4tZD7ilqImqW9k';
+var GEMINI_KEY='PASTE_YOUR_GEMINI_API_KEY_HERE';
 
 function askCoach(){
   if(!GEMINI_KEY||GEMINI_KEY.length<20||GEMINI_KEY.indexOf('PASTE')>=0){
@@ -1406,7 +1417,7 @@ function askCoach(){
   prompt+='4. One motivational tip tied to his chess background\n\n';
   prompt+='Keep it under 200 words. Be direct, specific, and encouraging. Use his actual numbers.';
 
-  var url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+GEMINI_KEY;
+  var url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key='+GEMINI_KEY;
   fetch(url,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
